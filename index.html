@@ -616,10 +616,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('a[href="#SENIOR_INTAKE_FORM_URL"]').forEach(a  => a.href = SENIOR_INTAKE_URL);
   document.querySelectorAll('a[href="mailto:[CONTACT_EMAIL]"]').forEach(a  => a.href = 'mailto:' + CONTACT_EMAIL);
 
-  // Inject deadline dates
+  // Inject deadline dates into every element that contains the placeholder
   document.querySelectorAll('*').forEach(el => {
-    if (el.children.length === 0 && el.textContent.includes('[DEADLINE DATE]')) {
-      el.textContent = el.textContent.replace(/\[DEADLINE DATE\]/g, DEADLINE_DATE);
+    if (el.children.length === 0 && el.innerHTML.includes('[DEADLINE DATE]')) {
+      el.innerHTML = el.innerHTML.replace(/\[DEADLINE DATE\]/g, DEADLINE_DATE);
     }
   });
 });
@@ -767,12 +767,6 @@ function verifyDOB() {
   // Both verified — show onboarding content
   document.getElementById('step-2').style.display = 'none';
   showStudentContent(_pendingMatch);
-
-  } catch (e) {
-    showMsg('error', `Something went wrong: ${e.message}`);
-    btn.disabled = false;
-    btn.textContent = 'Find My Checklist →';
-  }
 }
 
 function showStudentContent(r) {
