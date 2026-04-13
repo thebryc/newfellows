@@ -600,12 +600,12 @@
 //  CONFIG — swap these values when ready
 // ═══════════════════════════════════════════════════════════════
 const SHEET_ID            = '1Zm8s2C25SzXAxOWqy-CEDUFH6eZ9KIui3eWP313nITs';
-const MATRICULATION_URL   = '#MATRICULATION_FORM_URL';   // ← replace with real link
-const SENIOR_INTAKE_URL   = '#SENIOR_INTAKE_FORM_URL';   // ← replace with real link
-const CONTACT_EMAIL       = 'ram@bryc.org';               // ← replace with real email
-const DEADLINE_DATE       = 'April 30, 2026';
+const MATRICULATION_URL   = 'https://thebryc.org/onboard';
+const SENIOR_INTAKE_URL   = 'https://thebryc.org/2027';
+const CONTACT_EMAIL       = 'admissions@bryc.org';
+const DEADLINE_DATE       = 'May 1, 2026';
 const SENIOR_GRADE_VALUES = ['12', '12th', '12th Grade', 'Senior', 'senior', '12th grade'];
-const DOB_COL             = 3;   // ← set this to the column index (0-based) where date of birth is stored in your Applications sheet
+const DOB_COL             = 3;   // ← column index (0-based) where date of birth is stored in your Applications sheet
 
 // ═══════════════════════════════════════════════════════════════
 //  INIT — inject config values into the page
@@ -667,7 +667,7 @@ function parseCSV(txt) {
 // ═══════════════════════════════════════════════════════════════
 //  LOOKUP
 // ═══════════════════════════════════════════════════════════════
-// Parses a sheet DOB stored as M/D/YYYY into { m, d, y }
+// Parses a sheet DOB — handles M/D/YYYY, MM/DD/YYYY, YYYY-MM-DD, and "Month D, YYYY"
 function parseSheetDOB(s) {
   if (!s) return null;
   s = String(s).trim();
@@ -699,6 +699,7 @@ function parseSheetDOB(s) {
   return null;
 }
 
+// Parses the HTML date input value (YYYY-MM-DD)
 function parseInputDOB(s) {
   if (!s) return null;
   const parts = String(s).split('-');
