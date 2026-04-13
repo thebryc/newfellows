@@ -670,16 +670,35 @@ function parseCSV(txt) {
 // Parses a sheet DOB stored as M/D/YYYY into { m, d, y }
 function parseSheetDOB(s) {
   if (!s) return null;
-  const parts = String(s).trim().split('/');
-  if (parts.length !== 3) return null;
-  const m = parseInt(parts[0], 10);
-  const d = parseInt(parts[1], 10);
-  const y = parseInt(parts[2], 10);
-  if (isNaN(m) || isNaN(d) || isNaN(y)) return null;
-  return { m, d, y };
+  s = String(s).trim();
+
+  // Format: M/D/YYYY or MM/DD/YYYY
+  let parts = s.split('/');
+  if (parts.length === 3) {
+    const m = parseInt(parts[0], 10);
+    const d = parseInt(parts[1], 10);
+    const y = parseInt(parts[2], 10);
+    if (!isNaN(m) && !isNaN(d) && !isNaN(y)) return { m, d, y };
+  }
+
+  // Format: YYYY-MM-DD
+  parts = s.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (!isNaN(m) && !isNaN(d) && !isNaN(y)) return { m, d, y };
+  }
+
+  // Format: "January 15, 2010" or "Jan 15, 2010"
+  const parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    return { m: parsed.getMonth() + 1, d: parsed.getDate(), y: parsed.getFullYear() };
+  }
+
+  return null;
 }
 
-// Parses a date input value (YYYY-MM-DD) into { m, d, y }
 function parseInputDOB(s) {
   if (!s) return null;
   const parts = String(s).split('-');
