@@ -439,8 +439,6 @@
 
 <!-- ── Lookup ── -->
 <div class="lookup-section">
-
-  <!-- Step 1: Name -->
   <div class="lookup-card" id="step-1">
     <div class="lookup-title">Access Your Onboarding Checklist</div>
     <div class="lookup-sub">Enter the first and last name you used on your BRYC application.</div>
@@ -457,34 +455,10 @@
       </div>
     </div>
     <button class="lookup-btn" id="lookup-btn" onclick="lookupStudent()">
-      Continue →
+      Access My Checklist →
     </button>
     <div class="lookup-msg" id="lookup-msg"></div>
   </div>
-
-  <!-- Step 2: Birthday (hidden until name matches) -->
-  <div class="lookup-card" id="step-2" style="display:none">
-    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px">
-      <span style="background:var(--green-pale);color:var(--green);font-weight:700;font-size:11px;padding:3px 10px;border-radius:20px">Step 1 Complete</span>
-      Application found — one more step to verify your identity.
-    </div>
-    <div class="lookup-title">Confirm Your Date of Birth</div>
-    <div class="lookup-sub">Enter the date of birth from your BRYC application to access your checklist.</div>
-    <div class="field-group" style="margin-bottom:12px">
-      <label class="field-label" for="dob">Date of Birth</label>
-      <input class="field-input" id="dob" type="date"
-        onkeydown="if(event.key==='Enter')verifyDOB()">
-    </div>
-    <button class="lookup-btn" id="dob-btn" onclick="verifyDOB()">
-      Verify &amp; Access My Checklist →
-    </button>
-    <div class="lookup-msg" id="dob-msg"></div>
-    <div style="margin-top:12px;text-align:center">
-      <span style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline"
-        onclick="resetToStep1()">← Back</span>
-    </div>
-  </div>
-
 </div>
 
 <!-- ── Main content (revealed after lookup) ── -->
@@ -611,12 +585,11 @@ const SENIOR_INTAKE_URL   = 'https://thebryc.org/2027';
 const CONTACT_EMAIL       = 'admissions@thebryc.org';
 const DEADLINE_DATE       = 'April 30, 2026';
 const SENIOR_GRADE_VALUES = ['12', '12th', '12th Grade', 'Senior', 'senior', '12th grade'];
-const DOB_COL             = 3;        // 0-based column index for DOB in Applications sheet
 const SUBMISSIONS_SHEET   = 'Onboarding Submissions';
 const SUB_NAME_PAIRS      = [[5,6], [60,61], [93,94]]; // [firstName, lastName] col pairs for Student 1, 2, 3
 
 // ═══════════════════════════════════════════════════════════════
-//  INIT — inject config values into the page
+//  INIT
 // ═══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('*').forEach(el => {
@@ -667,61 +640,8 @@ function parseCSV(txt) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  DATE PARSING
-// ═══════════════════════════════════════════════════════════════
-function parseSheetDOB(s) {
-  if (!s) return null;
-  s = String(s).trim();
-
-  // Format: M/D/YYYY or MM/DD/YYYY
-  let parts = s.split('/');
-  if (parts.length === 3) {
-    const m = parseInt(parts[0], 10);
-    const d = parseInt(parts[1], 10);
-    const y = parseInt(parts[2], 10);
-    if (!isNaN(m) && !isNaN(d) && !isNaN(y)) return { m, d, y };
-  }
-
-  // Format: YYYY-MM-DD
-  parts = s.split('-');
-  if (parts.length === 3 && parts[0].length === 4) {
-    const y = parseInt(parts[0], 10);
-    const m = parseInt(parts[1], 10);
-    const d = parseInt(parts[2], 10);
-    if (!isNaN(m) && !isNaN(d) && !isNaN(y)) return { m, d, y };
-  }
-
-  // Format: "January 15, 2010" or "Jan 15, 2010"
-  const parsed = new Date(s);
-  if (!isNaN(parsed.getTime())) {
-    return { m: parsed.getMonth() + 1, d: parsed.getDate(), y: parsed.getFullYear() };
-  }
-
-  return null;
-}
-
-function parseInputDOB(s) {
-  if (!s) return null;
-  const parts = String(s).split('-');
-  if (parts.length !== 3) return null;
-  const y = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10);
-  const d = parseInt(parts[2], 10);
-  if (isNaN(m) || isNaN(d) || isNaN(y)) return null;
-  return { m, d, y };
-}
-
-function dobsMatch(a, b) {
-  if (!a || !b) return false;
-  return a.m === b.m && a.d === b.d && a.y === b.y;
-}
-
-// ═══════════════════════════════════════════════════════════════
 //  LOOKUP
 // ═══════════════════════════════════════════════════════════════
-let _pendingMatch = null;
-
-// ── Step 1: look up by name ──
 async function lookupStudent() {
   const first = document.getElementById('first-name').value.trim();
   const last  = document.getElementById('last-name').value.trim();
@@ -749,63 +669,37 @@ async function lookupStudent() {
     if (!match) {
       showMsg('error', `We couldn't find an application under that name. Double-check the spelling or contact the RAM team for help.`);
       btn.disabled = false;
-      btn.textContent = 'Continue →';
+      btn.textContent = 'Access My Checklist →';
       return;
     }
 
-    _pendingMatch = match;
+    // Name found — check submission status
+    btn.textContent = 'Loading your checklist…';
+    const firstName = (match[1] || '').trim().toLowerCase();
+    const lastName  = (match[2] || '').trim().toLowerCase();
+    let onboardingComplete = false;
+
+    try {
+      const subRows = await fetchSheet(SUBMISSIONS_SHEET);
+      const subData = subRows.slice(1);
+      onboardingComplete = subData.some(r =>
+        SUB_NAME_PAIRS.some(([fc, lc]) =>
+          (r[fc] || '').trim().toLowerCase() === firstName &&
+          (r[lc] || '').trim().toLowerCase() === lastName
+        )
+      );
+    } catch (e) {
+      console.warn('Could not load submissions sheet:', e.message);
+    }
+
     document.getElementById('step-1').style.display = 'none';
-    document.getElementById('step-2').style.display = 'block';
-    document.getElementById('dob').focus();
+    showStudentContent(match, onboardingComplete);
 
   } catch (e) {
     showMsg('error', `Something went wrong: ${e.message}`);
     btn.disabled = false;
-    btn.textContent = 'Continue →';
+    btn.textContent = 'Access My Checklist →';
   }
-}
-
-// ── Step 2: verify birthday ──
-async function verifyDOB() {
-  const dob = document.getElementById('dob').value.trim();
-  const btn = document.getElementById('dob-btn');
-
-  if (!dob) {
-    showDOBMsg('error', 'Please enter your date of birth.');
-    return;
-  }
-
-  const inputDOB = parseInputDOB(dob);
-  const sheetDOB = parseSheetDOB(_pendingMatch[DOB_COL]);
-
-  if (!dobsMatch(inputDOB, sheetDOB)) {
-    showDOBMsg('error', `That date of birth doesn't match our records. Double-check and try again, or contact the RAM team for help.`);
-    return;
-  }
-
-  // DOB verified — check submission status
-  btn.disabled = true;
-  btn.textContent = 'Loading your checklist…';
-
-  const firstName = (_pendingMatch[1] || '').trim().toLowerCase();
-  const lastName  = (_pendingMatch[2] || '').trim().toLowerCase();
-  let onboardingComplete = false;
-
-  try {
-    const subRows = await fetchSheet(SUBMISSIONS_SHEET);
-    const subData = subRows.slice(1);
-    onboardingComplete = subData.some(r =>
-      SUB_NAME_PAIRS.some(([fc, lc]) =>
-        (r[fc] || '').trim().toLowerCase() === firstName &&
-        (r[lc] || '').trim().toLowerCase() === lastName
-      )
-    );
-  } catch (e) {
-    console.warn('Could not load submissions sheet:', e.message);
-  }
-
-  document.getElementById('step-2').style.display = 'none';
-  showStudentContent(_pendingMatch, onboardingComplete);
 }
 
 function showStudentContent(r, onboardingComplete) {
@@ -815,7 +709,7 @@ function showStudentContent(r, onboardingComplete) {
   const isSenior  = SENIOR_GRADE_VALUES.includes(grade.trim());
 
   document.getElementById('student-first-name').textContent = firstName;
-  document.getElementById('student-school').textContent = school ? `${school}` : '';
+  document.getElementById('student-school').textContent = school || '';
   document.getElementById('student-grade-pill').textContent = grade ? `Grade: ${grade}` : 'Admitted Fellow';
 
   document.getElementById('senior-form-card').style.display = isSenior ? '' : 'none';
@@ -841,25 +735,6 @@ function showMsg(type, html) {
   el.className = 'lookup-msg ' + type;
   el.innerHTML = type === 'loading' ? `<div class="spinner"></div> ${html}` : html;
   el.style.display = type === 'loading' ? 'flex' : 'block';
-}
-
-function showDOBMsg(type, html) {
-  const el = document.getElementById('dob-msg');
-  el.className = 'lookup-msg ' + type;
-  el.innerHTML = html;
-  el.style.display = 'block';
-}
-
-function resetToStep1() {
-  _pendingMatch = null;
-  document.getElementById('step-2').style.display = 'none';
-  document.getElementById('step-1').style.display = 'block';
-  document.getElementById('dob').value = '';
-  document.getElementById('dob-msg').style.display = 'none';
-  const btn = document.getElementById('lookup-btn');
-  btn.disabled = false;
-  btn.textContent = 'Continue →';
-  document.getElementById('lookup-msg').style.display = 'none';
 }
 
 function esc(s) {
