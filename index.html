@@ -308,9 +308,7 @@
     .badge-required { background: #d8f3dc; color: #1B4332; }
     .badge-senior   { background: #fef3c7; color: #92400e; }
     .badge-deadline { background: #fef2f2; color: #991b1b; }
-    .form-cta {
-      flex-shrink: 0;
-    }
+    .form-cta { flex-shrink: 0; }
     .cta-btn {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 10px 20px;
@@ -330,6 +328,14 @@
       background: var(--gold); color: #fff;
     }
     .cta-btn.gold-btn:hover { background: #9a6f09; }
+    .cta-btn.submitted-btn {
+      background: var(--green-pale);
+      color: var(--green);
+      cursor: default;
+      font-size: 14px;
+      pointer-events: none;
+      border: 1.5px solid #b7e4c7;
+    }
 
     /* What's next */
     .next-card {
@@ -498,7 +504,7 @@
   <div class="section-heading">Your Required Forms</div>
   <div class="form-cards" id="form-cards">
 
-    <!-- Matriculation form — all students -->
+    <!-- Onboarding form — all students -->
     <div class="form-card required">
       <div class="form-icon green-icon">📋</div>
       <div class="form-info">
@@ -512,8 +518,8 @@
           <span class="badge badge-deadline">⏰ Due by [DEADLINE DATE]</span>
         </div>
       </div>
-      <div class="form-cta">
-        <a class="cta-btn green-btn" href="#MATRICULATION_FORM_URL" target="_blank">
+      <div class="form-cta" id="matriculation-cta">
+        <a class="cta-btn green-btn" href="https://thebryc.org/onboard" target="_blank">
           Complete Form ↗
         </a>
       </div>
@@ -534,7 +540,7 @@
         </div>
       </div>
       <div class="form-cta">
-        <a class="cta-btn gold-btn" href="#SENIOR_INTAKE_FORM_URL" target="_blank">
+        <a class="cta-btn gold-btn" href="https://thebryc.org/2027" target="_blank">
           Complete Form ↗
         </a>
       </div>
@@ -597,26 +603,22 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-//  CONFIG — swap these values when ready
+//  CONFIG
 // ═══════════════════════════════════════════════════════════════
 const SHEET_ID            = '1Zm8s2C25SzXAxOWqy-CEDUFH6eZ9KIui3eWP313nITs';
 const MATRICULATION_URL   = 'https://thebryc.org/onboard';
 const SENIOR_INTAKE_URL   = 'https://thebryc.org/2027';
-const CONTACT_EMAIL       = 'admissions@bryc.org';
-const DEADLINE_DATE       = 'May 1, 2026';
+const CONTACT_EMAIL       = 'admissions@thebryc.org';
+const DEADLINE_DATE       = 'April 30, 2026';
 const SENIOR_GRADE_VALUES = ['12', '12th', '12th Grade', 'Senior', 'senior', '12th grade'];
-const DOB_COL             = 5;   // ← column index (0-based) where date of birth is stored in your Applications sheet
+const DOB_COL             = 3;        // 0-based column index for DOB in Applications sheet
+const SUBMISSIONS_SHEET   = 'Onboarding Submissions';
+const SUB_NAME_PAIRS      = [[5,6], [60,61], [93,94]]; // [firstName, lastName] col pairs for Student 1, 2, 3
 
 // ═══════════════════════════════════════════════════════════════
 //  INIT — inject config values into the page
 // ═══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  // Swap placeholder links
-  document.querySelectorAll('a[href="#MATRICULATION_FORM_URL"]').forEach(a => a.href = MATRICULATION_URL);
-  document.querySelectorAll('a[href="#SENIOR_INTAKE_FORM_URL"]').forEach(a  => a.href = SENIOR_INTAKE_URL);
-  document.querySelectorAll('a[href="mailto:[CONTACT_EMAIL]"]').forEach(a  => a.href = 'mailto:' + CONTACT_EMAIL);
-
-  // Inject deadline dates into every element that contains the placeholder
   document.querySelectorAll('*').forEach(el => {
     if (el.children.length === 0 && el.innerHTML.includes('[DEADLINE DATE]')) {
       el.innerHTML = el.innerHTML.replace(/\[DEADLINE DATE\]/g, DEADLINE_DATE);
@@ -625,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-//  GOOGLE SHEETS FETCH (same read-only CSV approach)
+//  GOOGLE SHEETS FETCH
 // ═══════════════════════════════════════════════════════════════
 async function fetchSheet(name) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&t=${Date.now()}`;
@@ -665,9 +667,8 @@ function parseCSV(txt) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  LOOKUP
+//  DATE PARSING
 // ═══════════════════════════════════════════════════════════════
-// Parses a sheet DOB — handles M/D/YYYY, MM/DD/YYYY, YYYY-MM-DD, and "Month D, YYYY"
 function parseSheetDOB(s) {
   if (!s) return null;
   s = String(s).trim();
@@ -699,7 +700,6 @@ function parseSheetDOB(s) {
   return null;
 }
 
-// Parses the HTML date input value (YYYY-MM-DD)
 function parseInputDOB(s) {
   if (!s) return null;
   const parts = String(s).split('-');
@@ -716,13 +716,15 @@ function dobsMatch(a, b) {
   return a.m === b.m && a.d === b.d && a.y === b.y;
 }
 
-let _pendingMatch = null;   // holds the matched row between step 1 and step 2
+// ═══════════════════════════════════════════════════════════════
+//  LOOKUP
+// ═══════════════════════════════════════════════════════════════
+let _pendingMatch = null;
 
-// ── Step 1: look up by name only ──
+// ── Step 1: look up by name ──
 async function lookupStudent() {
   const first = document.getElementById('first-name').value.trim();
   const last  = document.getElementById('last-name').value.trim();
-  const msg   = document.getElementById('lookup-msg');
   const btn   = document.getElementById('lookup-btn');
 
   if (!first || !last) {
@@ -745,14 +747,12 @@ async function lookupStudent() {
     });
 
     if (!match) {
-      showMsg('error',
-        `We couldn't find an application under that name. Double-check the spelling or contact the RAM team for help.`);
+      showMsg('error', `We couldn't find an application under that name. Double-check the spelling or contact the RAM team for help.`);
       btn.disabled = false;
       btn.textContent = 'Continue →';
       return;
     }
 
-    // Name found — move to step 2
     _pendingMatch = match;
     document.getElementById('step-1').style.display = 'none';
     document.getElementById('step-2').style.display = 'block';
@@ -766,7 +766,7 @@ async function lookupStudent() {
 }
 
 // ── Step 2: verify birthday ──
-function verifyDOB() {
+async function verifyDOB() {
   const dob = document.getElementById('dob').value.trim();
   const btn = document.getElementById('dob-btn');
 
@@ -779,36 +779,57 @@ function verifyDOB() {
   const sheetDOB = parseSheetDOB(_pendingMatch[DOB_COL]);
 
   if (!dobsMatch(inputDOB, sheetDOB)) {
-    showDOBMsg('error',
-      `That date of birth doesn't match our records. Double-check and try again, or contact the RAM team for help.`);
+    showDOBMsg('error', `That date of birth doesn't match our records. Double-check and try again, or contact the RAM team for help.`);
     return;
   }
 
-  // Both verified — show onboarding content
+  // DOB verified — check submission status
+  btn.disabled = true;
+  btn.textContent = 'Loading your checklist…';
+
+  const firstName = (_pendingMatch[1] || '').trim().toLowerCase();
+  const lastName  = (_pendingMatch[2] || '').trim().toLowerCase();
+  let onboardingComplete = false;
+
+  try {
+    const subRows = await fetchSheet(SUBMISSIONS_SHEET);
+    const subData = subRows.slice(1);
+    onboardingComplete = subData.some(r =>
+      SUB_NAME_PAIRS.some(([fc, lc]) =>
+        (r[fc] || '').trim().toLowerCase() === firstName &&
+        (r[lc] || '').trim().toLowerCase() === lastName
+      )
+    );
+  } catch (e) {
+    console.warn('Could not load submissions sheet:', e.message);
+  }
+
   document.getElementById('step-2').style.display = 'none';
-  showStudentContent(_pendingMatch);
+  showStudentContent(_pendingMatch, onboardingComplete);
 }
 
-function showStudentContent(r) {
+function showStudentContent(r, onboardingComplete) {
   const firstName = r[1] || '';
   const school    = r[14] || '';
   const grade     = r[15] || '';
   const isSenior  = SENIOR_GRADE_VALUES.includes(grade.trim());
 
-  // Populate welcome banner
   document.getElementById('student-first-name').textContent = firstName;
   document.getElementById('student-school').textContent = school ? `${school}` : '';
-  document.getElementById('student-grade-pill').textContent = grade ? `Grade (2026–2027 School Year): ${grade}` : 'Admitted Fellow';
+  document.getElementById('student-grade-pill').textContent = grade ? `Grade: ${grade}` : 'Admitted Fellow';
 
-  // Show/hide senior form
   document.getElementById('senior-form-card').style.display = isSenior ? '' : 'none';
 
-  // Scroll smoothly into view and show
+  // Show submitted badge if onboarding form is already complete
+  if (onboardingComplete) {
+    document.getElementById('matriculation-cta').innerHTML =
+      '<span class="cta-btn submitted-btn">✓ Submitted</span>';
+  }
+
   const content = document.getElementById('main-content');
   content.classList.add('visible');
   setTimeout(() => content.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
 
-  // Update button state
   const btn = document.getElementById('lookup-btn');
   btn.textContent = '✓ Loaded';
   btn.style.background = '#16a34a';
@@ -818,9 +839,7 @@ function showStudentContent(r) {
 function showMsg(type, html) {
   const el = document.getElementById('lookup-msg');
   el.className = 'lookup-msg ' + type;
-  el.innerHTML = type === 'loading'
-    ? `<div class="spinner"></div> ${html}`
-    : html;
+  el.innerHTML = type === 'loading' ? `<div class="spinner"></div> ${html}` : html;
   el.style.display = type === 'loading' ? 'flex' : 'block';
 }
 
@@ -840,8 +859,7 @@ function resetToStep1() {
   const btn = document.getElementById('lookup-btn');
   btn.disabled = false;
   btn.textContent = 'Continue →';
-  const msg = document.getElementById('lookup-msg');
-  msg.style.display = 'none';
+  document.getElementById('lookup-msg').style.display = 'none';
 }
 
 function esc(s) {
