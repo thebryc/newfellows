@@ -485,7 +485,7 @@
         <div class="form-name">BRYC Matriculation Form</div>
         <div class="form-desc">
           This is your official enrollment form. It collects key information needed to finalize
-          your spot in the BRYC program, including emergency contacts, medical info, and program agreements.
+          your enrollment in BRYC, including emergency contacts, medical info, and program agreements.
         </div>
         <div class="form-badges">
           <span class="badge badge-required">✓ Required — All Students</span>
@@ -506,7 +506,7 @@
         <div class="form-name">Senior Intake Form</div>
         <div class="form-desc">
           As a rising senior, you'll complete this additional form to help us support your
-          college and career planning during your final year in the program.
+          college and career planning during your final year of high school.
         </div>
         <div class="form-badges">
           <span class="badge badge-senior">⭐ Seniors Only</span>
@@ -530,7 +530,7 @@
         <div class="step-num">1</div>
         <div>
           <div class="step-title">Complete your forms</div>
-          <div class="step-desc">Submit all required forms above before the deadline. Both the student and a guardian must sign the matriculation form.</div>
+          <div class="step-desc">Submit all required forms above before the deadline. Both the student and a guardian must sign the onboarding form.</div>
         </div>
       </div>
       <div class="next-step">
@@ -551,7 +551,7 @@
         <div class="step-num">4</div>
         <div>
           <div class="step-title">Program Year 2027 begins</div>
-          <div class="step-desc">You'll officially begin your BRYC journey with your cohort. We're excited to have you with us!</div>
+          <div class="step-desc">You'll officially begin your BRYC journey in August. We're excited to have you with us!</div>
         </div>
       </div>
     </div>
@@ -583,7 +583,7 @@ const SHEET_ID            = '1Zm8s2C25SzXAxOWqy-CEDUFH6eZ9KIui3eWP313nITs';
 const MATRICULATION_URL   = 'https://thebryc.org/onboard';
 const SENIOR_INTAKE_URL   = 'https://thebryc.org/2027';
 const CONTACT_EMAIL       = 'admissions@thebryc.org';
-const DEADLINE_DATE       = 'April 30, 2026';
+const DEADLINE_DATE       = 'May 1, 2026';
 const SENIOR_GRADE_VALUES = ['12', '12th', '12th Grade', 'Senior', 'senior', '12th grade'];
 const SUBMISSIONS_SHEET   = 'Onboarding Submissions';
 const SUB_NAME_PAIRS      = [[5,6], [60,61], [93,94]]; // [firstName, lastName] col pairs for Student 1, 2, 3
@@ -710,7 +710,7 @@ function showStudentContent(r, onboardingComplete) {
 
   document.getElementById('student-first-name').textContent = firstName;
   document.getElementById('student-school').textContent = school || '';
-  document.getElementById('student-grade-pill').textContent = grade ? `Grade: ${grade}` : 'Admitted Fellow';
+  document.getElementById('student-grade-pill').textContent = grade ? `Grade (2026 - 2027 School Year): ${grade}` : 'Admitted Fellow';
 
   document.getElementById('senior-form-card').style.display = isSenior ? '' : 'none';
 
