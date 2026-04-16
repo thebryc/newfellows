@@ -588,6 +588,14 @@ const SENIOR_GRADE_VALUES = ['12', '12th', '12th Grade', 'Senior', 'senior', '12
 const SUBMISSIONS_SHEET   = 'Onboarding Submissions';
 const SUB_NAME_PAIRS      = [[5,6], [60,61], [93,94]]; // [firstName, lastName] col pairs for Student 1, 2, 3
 
+// Roster sources — each tab's column positions (0-indexed).
+// Applications:    First=B(1), Last=C(2), School=O(14), Grade=P(15)
+// ISACT Prospects: First=B(1), Last=C(2), School=K(10), Grade=L(11)
+const ROSTER_SOURCES = [
+  { name: 'Applications',    firstCol: 1, lastCol: 2, schoolCol: 14, gradeCol: 15 },
+  { name: 'ISACT Prospects', firstCol: 1, lastCol: 2, schoolCol: 10, gradeCol: 11 }
+];
+
 // ═══════════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════════
@@ -657,14 +665,30 @@ async function lookupStudent() {
   showMsg('loading', 'Searching your application…');
 
   try {
-    const rows = await fetchSheet('Applications');
-    const data = rows.slice(1);
+    // Search each roster source in order until we find a match.
+    let match = null;
+    let matchedSource = null;
 
-    const match = data.find(r => {
-      const rFirst = (r[1]||'').trim().toLowerCase();
-      const rLast  = (r[2]||'').trim().toLowerCase();
-      return rFirst === first.toLowerCase() && rLast === last.toLowerCase();
-    });
+    for (const source of ROSTER_SOURCES) {
+      let rows;
+      try {
+        rows = await fetchSheet(source.name);
+      } catch (e) {
+        console.warn(`Could not load "${source.name}" sheet:`, e.message);
+        continue;
+      }
+      const data = rows.slice(1);
+      const found = data.find(r => {
+        const rFirst = (r[source.firstCol] || '').trim().toLowerCase();
+        const rLast  = (r[source.lastCol]  || '').trim().toLowerCase();
+        return rFirst === first.toLowerCase() && rLast === last.toLowerCase();
+      });
+      if (found) {
+        match = found;
+        matchedSource = source;
+        break;
+      }
+    }
 
     if (!match) {
       showMsg('error', `We couldn't find an application under that name. Double-check the spelling or contact the RAM team for help.`);
@@ -675,8 +699,8 @@ async function lookupStudent() {
 
     // Name found — check submission status
     btn.textContent = 'Loading your checklist…';
-    const firstName = (match[1] || '').trim().toLowerCase();
-    const lastName  = (match[2] || '').trim().toLowerCase();
+    const firstName = (match[matchedSource.firstCol] || '').trim().toLowerCase();
+    const lastName  = (match[matchedSource.lastCol]  || '').trim().toLowerCase();
     let onboardingComplete = false;
 
     try {
@@ -693,7 +717,7 @@ async function lookupStudent() {
     }
 
     document.getElementById('step-1').style.display = 'none';
-    showStudentContent(match, onboardingComplete);
+    showStudentContent(match, matchedSource, onboardingComplete);
 
   } catch (e) {
     showMsg('error', `Something went wrong: ${e.message}`);
@@ -702,10 +726,10 @@ async function lookupStudent() {
   }
 }
 
-function showStudentContent(r, onboardingComplete) {
-  const firstName = r[1] || '';
-  const school    = r[14] || '';
-  const grade     = r[15] || '';
+function showStudentContent(r, source, onboardingComplete) {
+  const firstName = r[source.firstCol]  || '';
+  const school    = r[source.schoolCol] || '';
+  const grade     = r[source.gradeCol]  || '';
   const isSenior  = SENIOR_GRADE_VALUES.includes(grade.trim());
 
   document.getElementById('student-first-name').textContent = firstName;
