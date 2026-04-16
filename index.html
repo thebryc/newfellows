@@ -227,6 +227,78 @@
     }
     .main-content.visible { display: block; }
 
+    /* Profile toolbar (back / logout) */
+    .profile-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      gap: 10px;
+    }
+    .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .toolbar-btn:hover {
+      border-color: var(--green-light);
+      background: var(--green-pale);
+      color: var(--green);
+    }
+    .toolbar-btn.logout-btn:hover {
+      border-color: #fecaca;
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    /* "Another student" card at bottom */
+    .another-student-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1.5px dashed var(--border);
+      padding: 24px 28px;
+      margin-top: 24px;
+      text-align: center;
+    }
+    .another-student-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .another-student-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+    .another-student-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 11px 22px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      background: var(--green);
+      color: #fff;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+    .another-student-btn:hover { background: var(--green-mid); }
+
     /* Welcome banner */
     .welcome-banner {
       background: linear-gradient(135deg, var(--green) 0%, var(--green-mid) 100%);
@@ -464,6 +536,16 @@
 <!-- ── Main content (revealed after lookup) ── -->
 <div class="main-content" id="main-content">
 
+  <!-- Top toolbar: Back (left) and Logout (right) -->
+  <div class="profile-toolbar">
+    <button class="toolbar-btn back-btn" onclick="resetToSignIn()" title="Wrong account? Go back and re-enter your name.">
+      ← Back
+    </button>
+    <button class="toolbar-btn logout-btn" onclick="resetToSignIn()" title="Log out and return to the sign-in page.">
+      Log out ↪
+    </button>
+  </div>
+
   <!-- Welcome banner -->
   <div class="welcome-banner">
     <div class="welcome-icon">🎓</div>
@@ -488,7 +570,7 @@
           your enrollment in BRYC, including emergency contacts, medical info, and program agreements.
         </div>
         <div class="form-badges">
-          <span class="badge badge-required">✓ Required — All New Students</span>
+          <span class="badge badge-required">✓ Required — All Students</span>
           <span class="badge badge-deadline">⏰ Due by [DEADLINE DATE]</span>
         </div>
       </div>
@@ -509,7 +591,7 @@
           college and career planning during your final year of high school.
         </div>
         <div class="form-badges">
-          <span class="badge badge-senior">⭐ Class of 2027 Only</span>
+          <span class="badge badge-senior">⭐ Seniors Only</span>
           <span class="badge badge-deadline">⏰ Due by [DEADLINE DATE]</span>
         </div>
       </div>
@@ -569,6 +651,17 @@
     </a>
   </div>
 
+  <!-- Another-student prompt -->
+  <div class="another-student-card">
+    <div class="another-student-title">Onboarding another student?</div>
+    <div class="another-student-desc">
+      If you have forms to submit for another student in your family, head back to the sign-in page.
+    </div>
+    <button class="another-student-btn" onclick="resetToSignIn()">
+      ↺ Submit for Another Student
+    </button>
+  </div>
+
 </div><!-- /main-content -->
 
 <footer>
@@ -599,13 +692,58 @@ const ROSTER_SOURCES = [
 // ═══════════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════════
+let ORIGINAL_MATRICULATION_CTA = '';
+
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('*').forEach(el => {
     if (el.children.length === 0 && el.innerHTML.includes('[DEADLINE DATE]')) {
       el.innerHTML = el.innerHTML.replace(/\[DEADLINE DATE\]/g, DEADLINE_DATE);
     }
   });
+  // Cache original CTA so we can restore it after a logout/back reset.
+  const cta = document.getElementById('matriculation-cta');
+  if (cta) ORIGINAL_MATRICULATION_CTA = cta.innerHTML;
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  RESET TO SIGN-IN  (Back / Logout / Another Student)
+// ═══════════════════════════════════════════════════════════════
+function resetToSignIn() {
+  // Hide profile, show sign-in card
+  document.getElementById('main-content').classList.remove('visible');
+  document.getElementById('step-1').style.display = '';
+
+  // Clear name inputs
+  document.getElementById('first-name').value = '';
+  document.getElementById('last-name').value = '';
+
+  // Reset lookup button to its original state
+  const btn = document.getElementById('lookup-btn');
+  btn.disabled = false;
+  btn.textContent = 'Access My Checklist →';
+  btn.style.background = '';
+
+  // Clear any lookup message
+  const msg = document.getElementById('lookup-msg');
+  msg.className = 'lookup-msg';
+  msg.innerHTML = '';
+  msg.style.display = 'none';
+
+  // Restore the matriculation CTA in case it was replaced with "Submitted"
+  if (ORIGINAL_MATRICULATION_CTA) {
+    document.getElementById('matriculation-cta').innerHTML = ORIGINAL_MATRICULATION_CTA;
+  }
+
+  // Hide senior form card — it will be re-shown on next lookup if applicable
+  document.getElementById('senior-form-card').style.display = 'none';
+
+  // Scroll to top of page and focus first-name field
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  setTimeout(() => {
+    const f = document.getElementById('first-name');
+    if (f) f.focus();
+  }, 350);
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  GOOGLE SHEETS FETCH
