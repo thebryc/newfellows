@@ -148,10 +148,7 @@
       font-size: 13px; color: var(--muted);
       margin-bottom: 22px; line-height: 1.5;
     }
-    .name-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+    .id-row {
       margin-bottom: 12px;
     }
     .field-group { display: flex; flex-direction: column; gap: 5px; }
@@ -473,7 +470,6 @@
 
     /* Responsive */
     @media (max-width: 540px) {
-      .name-row { grid-template-columns: 1fr; }
       .lookup-card { padding: 24px 20px; }
       .form-card { flex-wrap: wrap; }
       .form-cta { width: 100%; }
@@ -501,7 +497,7 @@
   <h1>Welcome to the<br><span>BRYC Community</span></h1>
   <p class="hero-sub">
     You've taken a big step. Now let's get you officially enrolled.
-    Look up your name below to access your personalized onboarding checklist.
+    Enter your Student ID below to access your personalized onboarding checklist.
   </p>
   <div class="deadline-pill">
     <span class="dot"></span>
@@ -513,16 +509,12 @@
 <div class="lookup-section">
   <div class="lookup-card" id="step-1">
     <div class="lookup-title">Access Your Onboarding Checklist</div>
-    <div class="lookup-sub">Enter the first and last name you used on your BRYC application.</div>
-    <div class="name-row">
+    <div class="lookup-sub">Enter the Student ID provided in your BRYC admission email.</div>
+    <div class="id-row">
       <div class="field-group">
-        <label class="field-label" for="first-name">First Name</label>
-        <input class="field-input" id="first-name" type="text" placeholder="e.g. Jordan"
-          onkeydown="if(event.key==='Enter')lookupStudent()">
-      </div>
-      <div class="field-group">
-        <label class="field-label" for="last-name">Last Name</label>
-        <input class="field-input" id="last-name" type="text" placeholder="e.g. Williams"
+        <label class="field-label" for="student-id">Student ID</label>
+        <input class="field-input" id="student-id" type="text" placeholder="e.g. BRYC2027A"
+          autocomplete="off" autocapitalize="characters" spellcheck="false"
           onkeydown="if(event.key==='Enter')lookupStudent()">
       </div>
     </div>
@@ -538,7 +530,7 @@
 
   <!-- Top toolbar: Back (left) and Logout (right) -->
   <div class="profile-toolbar">
-    <button class="toolbar-btn back-btn" onclick="resetToSignIn()" title="Wrong account? Go back and re-enter your name.">
+    <button class="toolbar-btn back-btn" onclick="resetToSignIn()" title="Wrong ID? Go back and re-enter your Student ID.">
       ← Back
     </button>
     <button class="toolbar-btn logout-btn" onclick="resetToSignIn()" title="Log out and return to the sign-in page.">
@@ -550,7 +542,7 @@
   <div class="welcome-banner">
     <div class="welcome-icon">🎓</div>
     <div>
-      <div class="welcome-name">Hey, <span id="student-first-name">there</span>!</div>
+      <div class="welcome-name">Hey, <span id="student-full-name">there</span>!</div>
       <div class="welcome-school" id="student-school"></div>
     </div>
     <div class="welcome-grade-pill" id="student-grade-pill"></div>
@@ -644,7 +636,7 @@
     <div class="contact-icon">💬</div>
     <div class="contact-info">
       <div class="contact-title">Questions? We're here to help.</div>
-      <div class="contact-desc">If you have trouble with a form, can't find your name, or have any questions about the onboarding process, reach out to the RAM team.</div>
+      <div class="contact-desc">If you have trouble with a form, can't find your Student ID, or have any questions about the onboarding process, reach out to the RAM team.</div>
     </div>
     <a class="contact-email" href="https://mail.google.com/mail/?view=cm&to=admissions@thebryc.org" target="_blank">
       ✉ Email the RAM Team
@@ -676,18 +668,15 @@ const SHEET_ID            = '1Zm8s2C25SzXAxOWqy-CEDUFH6eZ9KIui3eWP313nITs';
 const MATRICULATION_URL   = 'https://thebryc.org/onboard';
 const SENIOR_INTAKE_URL   = 'https://thebryc.org/2027';
 const CONTACT_EMAIL       = 'admissions@thebryc.org';
-const DEADLINE_DATE       = 'May 1, 2026';
+const DEADLINE_DATE       = 'Friday, May 22, 2026';
 const SENIOR_GRADE_VALUES = ['12', '12th', '12th Grade', 'Senior', 'senior', '12th grade'];
 const SUBMISSIONS_SHEET   = 'Onboarding Submissions';
 const SUB_NAME_PAIRS      = [[5,6], [60,61], [93,94]]; // [firstName, lastName] col pairs for Student 1, 2, 3
 
-// Roster sources — each tab's column positions (0-indexed).
-// Applications:    First=B(1), Last=C(2), School=O(14), Grade=P(15)
-// ISACT Applicants: First=C(2), Last=D(3), School=L(11), Grade=M(12)
-//   (column B reserved for onboarding-form completion flag)
+// Roster source — Applications tab column positions (0-indexed).
+// Applications: StudentID=B(1), First=C(2), Last=D(3), School=P(15), Grade=Q(16)
 const ROSTER_SOURCES = [
-  { name: 'Applications',    firstCol: 1, lastCol: 2, schoolCol: 14, gradeCol: 15 },
-  { name: 'ISACT Applicants', firstCol: 2, lastCol: 3, schoolCol: 11, gradeCol: 12 }
+  { name: 'Applications', idCol: 1, firstCol: 2, lastCol: 3, schoolCol: 15, gradeCol: 16 }
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -714,9 +703,8 @@ function resetToSignIn() {
   document.getElementById('main-content').classList.remove('visible');
   document.getElementById('step-1').style.display = '';
 
-  // Clear name inputs
-  document.getElementById('first-name').value = '';
-  document.getElementById('last-name').value = '';
+  // Clear student ID input
+  document.getElementById('student-id').value = '';
 
   // Reset lookup button to its original state
   const btn = document.getElementById('lookup-btn');
@@ -738,10 +726,10 @@ function resetToSignIn() {
   // Hide senior form card — it will be re-shown on next lookup if applicable
   document.getElementById('senior-form-card').style.display = 'none';
 
-  // Scroll to top of page and focus first-name field
+  // Scroll to top of page and focus the Student ID field
   window.scrollTo({ top: 0, behavior: 'smooth' });
   setTimeout(() => {
-    const f = document.getElementById('first-name');
+    const f = document.getElementById('student-id');
     if (f) f.focus();
   }, 350);
 }
@@ -790,12 +778,11 @@ function parseCSV(txt) {
 //  LOOKUP
 // ═══════════════════════════════════════════════════════════════
 async function lookupStudent() {
-  const first = document.getElementById('first-name').value.trim();
-  const last  = document.getElementById('last-name').value.trim();
-  const btn   = document.getElementById('lookup-btn');
+  const studentId = document.getElementById('student-id').value.trim();
+  const btn       = document.getElementById('lookup-btn');
 
-  if (!first || !last) {
-    showMsg('error', 'Please enter both your first and last name.');
+  if (!studentId) {
+    showMsg('error', 'Please enter your Student ID.');
     return;
   }
 
@@ -803,8 +790,10 @@ async function lookupStudent() {
   btn.textContent = 'Searching…';
   showMsg('loading', 'Searching your application…');
 
+  const studentIdLower = studentId.toLowerCase();
+
   try {
-    // Search each roster source in order until we find a match.
+    // Search each roster source in order until we find a match by Student ID.
     let match = null;
     let matchedSource = null;
 
@@ -818,9 +807,8 @@ async function lookupStudent() {
       }
       const data = rows.slice(1);
       const found = data.find(r => {
-        const rFirst = (r[source.firstCol] || '').trim().toLowerCase();
-        const rLast  = (r[source.lastCol]  || '').trim().toLowerCase();
-        return rFirst === first.toLowerCase() && rLast === last.toLowerCase();
+        const rId = (r[source.idCol] || '').trim().toLowerCase();
+        return rId !== '' && rId === studentIdLower;
       });
       if (found) {
         match = found;
@@ -830,13 +818,13 @@ async function lookupStudent() {
     }
 
     if (!match) {
-      showMsg('error', `We couldn't find an application under that name. Double-check the spelling or contact the RAM team for help.`);
+      showMsg('error', `We couldn't find an application with that Student ID. Double-check the ID or contact the RAM team for help.`);
       btn.disabled = false;
       btn.textContent = 'Access My Checklist →';
       return;
     }
 
-    // Name found — check submission status
+    // ID found — check submission status by name (submissions sheet is keyed on name)
     btn.textContent = 'Loading your checklist…';
     const firstName = (match[matchedSource.firstCol] || '').trim().toLowerCase();
     const lastName  = (match[matchedSource.lastCol]  || '').trim().toLowerCase();
@@ -866,12 +854,14 @@ async function lookupStudent() {
 }
 
 function showStudentContent(r, source, onboardingComplete) {
-  const firstName = r[source.firstCol]  || '';
+  const firstName = (r[source.firstCol]  || '').trim();
+  const lastName  = (r[source.lastCol]   || '').trim();
   const school    = r[source.schoolCol] || '';
   const grade     = r[source.gradeCol]  || '';
   const isSenior  = SENIOR_GRADE_VALUES.includes(grade.trim());
+  const fullName  = [firstName, lastName].filter(Boolean).join(' ') || 'there';
 
-  document.getElementById('student-first-name').textContent = firstName;
+  document.getElementById('student-full-name').textContent = fullName;
   document.getElementById('student-school').textContent = school || '';
   document.getElementById('student-grade-pill').textContent = grade ? `Grade (2026 - 2027 School Year): ${grade}` : 'Admitted Fellow';
 
